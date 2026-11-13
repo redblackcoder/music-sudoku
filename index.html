@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Musical Sudoku Builder</title>
+<style>
+  @font-face {
+    font-family: 'Bravura';
+    src: url('Bravura.otf') format('opentype');
+    font-display: block;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: #f5f0eb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 30px 20px;
+  }
+
+  h1 { font-size: 2.2rem; margin-bottom: 8px; color: #2c1810; }
+  .subtitle { font-size: 0.95rem; color: #6b5b50; margin-bottom: 24px; text-align: center; }
+
+  .grid {
+    display: inline-grid;
+    grid-template-columns: repeat(9, 60px);
+    grid-template-rows: repeat(9, 60px);
+    border: 3px solid #2c1810;
+    margin-bottom: 24px;
+  }
+
+  .cell {
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #bbb;
+    cursor: pointer; background: #fff; outline: none;
+    user-select: none; transition: background 0.1s;
+    overflow: hidden;
+    position: relative;
+  }
+  .cell .ms {
+    font-family: 'Bravura', serif;
+    position: absolute;
+    line-height: 1;
+  }
+
+  .cell:hover { background: #f0e8df; }
+  .cell.selected { background: #dde8f0; outline: 2px solid #4a90d9; outline-offset: -2px; }
+
+  /* thick borders for 3x3 boxes */
+  .cell:nth-child(9n+4), .cell:nth-child(9n+7) { border-left: 3px solid #2c1810; }
+  .cell:nth-child(n+19):nth-child(-n+27) { border-bottom: 3px solid #2c1810; }
+  .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 3px solid #2c1810; }
+
+  .controls { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 10px 24px; font-size: 1rem; font-family: inherit;
+    border: 2px solid #2c1810; background: #fff; color: #2c1810;
+    border-radius: 6px; cursor: pointer; transition: background 0.15s;
+  }
+  button:hover { background: #f0e8df; }
+
+  .key-legend {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px 28px; font-size: 0.95rem; color: #4a3a30;
+    margin-bottom: 20px; background: #fff; padding: 14px 22px;
+    border-radius: 8px; border: 1px solid #ddd;
+  }
+  .key-legend .item { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .key-legend .sym {
+    font-family: 'Bravura', serif;
+    font-size: 28px;
+    width: 34px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .grid-wrapper { text-align: center; }
+
+  /* --- Print-only elements --- */
+  .print-section { display: none; }
+
+  @media print {
+    @page { size: letter portrait; margin: 0.45in 0.65in 0.4in 0.45in; }
+
+    body { background: #fff; padding: 0; display: block; }
+
+    /* Hide screen-only UI */
+    .screen-only { display: none !important; }
+
+    /* Show print section */
+    .print-section { display: block !important; }
+
+    .print-header {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: bold;
+      margin: 0 0 8px;
+      color: #000;
+      font-family: 'Georgia', serif;
+    }
+
+    .print-intro {
+      font-size: 0.78rem;
+      color: #222;
+      line-height: 1.45;
+      margin: 0 0 10px;
+      max-width: 100%;
+    }
+    .print-intro strong { font-size: 0.82rem; }
+
+    .print-symbols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 20px;
+      margin: 0 0 14px;
+      font-size: 0.73rem;
+      color: #222;
+      line-height: 1.4;
+    }
+    .print-symbols table { width: 100%; border-collapse: collapse; }
+    .print-symbols td {
+      padding: 3px 6px;
+      border-bottom: 1px solid #ddd;
+      vertical-align: middle;
+    }
+    .print-symbols td.sym-cell {
+      width: 30px;
+      text-align: center;
+      font-family: 'Bravura', serif;
+      font-size: 18px;
+      padding: 3px 4px;
+    }
+    .print-symbols td.sym-cell svg {
+      width: 24px; height: 20px; vertical-align: middle;
+    }
+    .print-symbols td.name-cell {
+      font-weight: bold;
+      white-space: nowrap;
+      width: 100px;
+      padding-right: 4px;
+    }
+
+    .grid-wrapper {
+      text-align: center;
+    }
+    .grid {
+      grid-template-columns: repeat(9, 64px);
+      grid-template-rows: repeat(9, 64px);
+      margin: 0 auto;
+      border-color: #000;
+      width: fit-content;
+    }
+    .cell {
+      width: 64px; height: 64px;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      background: #fff !important;
+      border-color: #999;
+    }
+    .cell:nth-child(9n+4), .cell:nth-child(9n+7) { border-left-color: #000; }
+    .cell:nth-child(n+19):nth-child(-n+27) { border-bottom-color: #000; }
+    .cell:nth-child(n+46):nth-child(-n+54) { border-bottom-color: #000; }
+    .cell.selected { outline: none; background: #fff !important; }
+    .cell svg { width: 34px; height: 30px; }
+
+    .print-credit {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #555;
+      font-style: italic;
+      margin-top: 64px;
+      letter-spacing: 0.02em;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== PRINT LAYOUT (hidden on screen, shown when printing) ====== -->
+<div class="print-section">
+  <div class="print-header">Musical Sudoku</div>
+
+  <div class="print-intro">
+    <strong>Instructions</strong><br>
+    Solve the Sudoku puzzle using standard Sudoku rules, however, instead of using digits 1&ndash;9,
+    use the following musical symbols. Each symbol must appear exactly once in each row, each column,
+    and each 3&times;3 square.
+  </div>
+
+  <div class="print-symbols">
+    <table>
+      <tr>
+        <td class="sym-cell" id="pi1"></td>
+        <td class="name-cell">Quarter Note</td>
+        <td>A filled note head with a stem; lasts 1 beat</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi2"></td>
+        <td class="name-cell">Half Note</td>
+        <td>An open note head with a stem; lasts 2 beats</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi3"></td>
+        <td class="name-cell">Whole Note</td>
+        <td>An open note head without a stem; lasts 4 beats</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi4"></td>
+        <td class="name-cell">Eighth Note</td>
+        <td>A filled note head with a stem and one flag; lasts &frac12; beat</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi5"></td>
+        <td class="name-cell">Quarter Rest</td>
+        <td>A zigzag symbol meaning silence for 1 beat</td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <td class="sym-cell" id="pi6"></td>
+        <td class="name-cell">Beamed Eighths</td>
+        <td>Two eighth notes joined by a beam; each lasts &frac12; beat</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi7"></td>
+        <td class="name-cell">Treble Clef</td>
+        <td>The G-clef; marks the higher-pitched staff</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi8"></td>
+        <td class="name-cell">Bass Clef</td>
+        <td>The F-clef with two dots; marks the lower-pitched staff</td>
+      </tr>
+      <tr>
+        <td class="sym-cell" id="pi9"></td>
+        <td class="name-cell">Sharp</td>
+        <td>The &#x266F; sign; raises a note by a half step</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ====== SCREEN LAYOUT ====== -->
+<h1 class="screen-only">Musical Sudoku Builder</h1>
+<p class="subtitle screen-only">Press 1-9 to place a music symbol. Click a cell to select it. Press Delete/Backspace to clear.<br>Use arrow keys to navigate.</p>
+<div class="key-legend screen-only" id="keyLegend"></div>
+
+<!-- Grid is shared between screen and print -->
+<div class="grid-wrapper">
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="controls screen-only">
+  <button onclick="clearAll()">Clear All</button>
+  <button onclick="window.print()">Print Puzzle</button>
+</div>
+
+<div class="print-section print-credit">By Erisha | Grade 2 | Room 5</div>
+
+<script>
+// SMuFL codepoints for Bravura font
+// Each symbol has: char, fontSize, and translateY offset to visually center it.
+// SMuFL glyphs are positioned relative to a music staff baseline, so they need
+// individual vertical adjustments to appear centered in a sudoku cell.
+const SYMBOL_DATA = {
+  1: { char: '\uE1D5', size: 34, dy: 8  },  // noteQuarterUp
+  2: { char: '\uE1D3', size: 34, dy: 8  },  // noteHalfUp
+  3: { char: '\uE1D2', size: 34, dy: 2  },  // noteWhole (short, center)
+  4: { char: '\uE1D7', size: 34, dy: 8  },  // note8thUp
+  5: { char: '\uE4E5', size: 34, dy: 6  },  // restQuarter
+  7: { char: '\uE050', size: 24, dy: 4  },  // gClef (very tall, scale down)
+  8: { char: '\uE062', size: 26, dy: 4  },  // fClef (tall, scale down a bit)
+  9: { char: '\uE262', size: 30, dy: 4  },  // accidentalSharp
+};
+
+const BEAMED_SVG = `<svg viewBox="0 0 52 56" style="width:38px;height:36px;display:block;margin:auto;">
+  <ellipse cx="9" cy="44" rx="7.5" ry="5.5" transform="rotate(-20 9 44)" fill="currentColor"/>
+  <rect x="15" y="6" width="2.2" height="39" fill="currentColor"/>
+  <ellipse cx="37" cy="44" rx="7.5" ry="5.5" transform="rotate(-20 37 44)" fill="currentColor"/>
+  <rect x="43" y="6" width="2.2" height="39" fill="currentColor"/>
+  <rect x="15" y="6" width="30.2" height="4.5" fill="currentColor"/>
+</svg>`;
+
+function makeSymbolHTML(num) {
+  if (num === 6) return BEAMED_SVG;
+  const d = SYMBOL_DATA[num];
+  return `<span class="ms" style="font-size:${d.size}px;transform:translateY(${d.dy}px)">${d.char}</span>`;
+}
+
+const NAMES = {
+  1: 'Quarter Note', 2: 'Half Note', 3: 'Whole Note',
+  4: 'Eighth Note', 5: 'Quarter Rest', 6: 'Beamed Eighths',
+  7: 'Treble Clef', 8: 'Bass Clef', 9: 'Sharp'
+};
+
+// Build on-screen legend
+const legend = document.getElementById('keyLegend');
+for (let i = 1; i <= 9; i++) {
+  const item = document.createElement('div');
+  item.className = 'item';
+  if (i === 6) {
+    item.innerHTML = `<span class="sym">${BEAMED_SVG}</span> ${i} = ${NAMES[i]}`;
+  } else {
+    const d = SYMBOL_DATA[i];
+    item.innerHTML = `<span class="sym" style="position:relative"><span class="ms" style="font-size:${d.size * 0.8}px;transform:translateY(${d.dy * 0.7}px)">${d.char}</span></span> ${i} = ${NAMES[i]}`;
+  }
+  legend.appendChild(item);
+}
+
+// Fill print instruction symbols
+for (let i = 1; i <= 9; i++) {
+  const el = document.getElementById('pi' + i);
+  if (el) {
+    if (i === 6) {
+      el.innerHTML = BEAMED_SVG;
+    } else {
+      const d = SYMBOL_DATA[i];
+      el.innerHTML = `<span style="font-family:'Bravura',serif;font-size:${d.size * 0.55}px;position:relative;top:${d.dy * 0.4}px">${d.char}</span>`;
+    }
+  }
+}
+
+// Grid state
+const grid = new Array(81).fill(0);
+let selectedCell = null;
+
+function buildGrid() {
+  const container = document.getElementById('grid');
+  for (let i = 0; i < 81; i++) {
+    const div = document.createElement('div');
+    div.className = 'cell';
+    div.tabIndex = 0;
+    div.dataset.idx = i;
+    div.addEventListener('click', () => selectCell(i));
+    container.appendChild(div);
+  }
+}
+
+function selectCell(i) {
+  document.querySelectorAll('.cell').forEach(c => c.classList.remove('selected'));
+  selectedCell = i;
+  document.querySelectorAll('.cell')[i].classList.add('selected');
+}
+
+function renderCell(i) {
+  const cell = document.querySelectorAll('.cell')[i];
+  if (grid[i] === 0) {
+    cell.innerHTML = '';
+  } else {
+    cell.innerHTML = makeSymbolHTML(grid[i]);
+  }
+}
+
+function placeSymbol(num) {
+  if (selectedCell === null) return;
+  grid[selectedCell] = num;
+  renderCell(selectedCell);
+  for (let j = selectedCell + 1; j < 81; j++) {
+    if (grid[j] === 0) { selectCell(j); return; }
+  }
+}
+
+function clearCell() {
+  if (selectedCell === null) return;
+  grid[selectedCell] = 0;
+  renderCell(selectedCell);
+}
+
+function clearAll() {
+  grid.fill(0);
+  for (let i = 0; i < 81; i++) renderCell(i);
+  selectCell(0);
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+    e.preventDefault(); window.print(); return;
+  }
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= 9) { e.preventDefault(); placeSymbol(num); return; }
+  if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); clearCell(); return; }
+
+  if (selectedCell === null) return;
+  const row = Math.floor(selectedCell / 9), col = selectedCell % 9;
+  if (e.key === 'ArrowRight' && col < 8) { selectCell(selectedCell + 1); e.preventDefault(); }
+  if (e.key === 'ArrowLeft'  && col > 0) { selectCell(selectedCell - 1); e.preventDefault(); }
+  if (e.key === 'ArrowDown'  && row < 8) { selectCell(selectedCell + 9); e.preventDefault(); }
+  if (e.key === 'ArrowUp'    && row > 0) { selectCell(selectedCell - 9); e.preventDefault(); }
+});
+
+buildGrid();
+selectCell(0);
+</script>
+</body>
+</html>
